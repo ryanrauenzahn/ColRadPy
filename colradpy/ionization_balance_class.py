@@ -7,17 +7,29 @@ from colradpy.read_adf11 import *
 def interp_rates_adf11(logged_temp,logged_dens,temp,dens,logged_gcr): # y are logged_temp and logged_dens args alongside temp and dens? seems redundant?
     # Dane did some optimization, Curt seemed to cobble this together (Dane optimized just this block of code as a self-contained unit)
     # parallelization should be implemented if more performance is needed
-    gcr_arr = np.zeros( (np.shape(logged_gcr)[0],np.shape(logged_gcr)[1],len(temp),len(dens)) )
+    source_logged_temp = np.asarray(logged_temp)
+    source_logged_dens = np.asarray(logged_dens)
+    target_logged_temp = np.log10(np.asarray(temp))
+    target_logged_dens = np.log10(np.asarray(dens))
 
-    logged_temp, logged_dens = np.log10(temp), np.log10(dens) # pre-compute to save time
+    gcr_arr = np.zeros((np.shape(logged_gcr)[0],
+                        np.shape(logged_gcr)[1],
+                        len(target_logged_temp),
+                        len(target_logged_dens)))
+
+    # Fitpack needs spline order < number of grid points.
+    kx = min(3, len(source_logged_temp) - 1)
+    ky = min(3, len(source_logged_dens) - 1)
     
     for i in range(0,np.shape(logged_gcr)[0]):
         for j in range(0,np.shape(logged_gcr)[1]):
-            interp_gcr = RectBivariateSpline(logged_temp,
-                logged_dens,
+            interp_gcr = RectBivariateSpline(source_logged_temp,
+                source_logged_dens,
                 logged_gcr[i,j,:,:],
+                kx=kx,
+                ky=ky
             )
-            gcr_arr[i,j] = interp_gcr(logged_temp, logged_dens) # array size matching works when Dane tests it
+            gcr_arr[i,j] = interp_gcr(target_logged_temp, target_logged_dens) # array size matching works when Dane tests it
     return 10**gcr_arr
 
 
