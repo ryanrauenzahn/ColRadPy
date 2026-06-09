@@ -15,6 +15,7 @@ base_url = "http://open.adas.ac.uk/download/adf04/"
 
 # Carbon ADF04 files
 files = {
+    "mom97_ls#c0.dat": "adas][6/mom97_ls][c0.dat",  # C I
     "mom97_ls#c1.dat": "adas][6/mom97_ls][c1.dat",  # C II
     "mom97_ls#c2.dat": "adas][6/mom97_ls][c2.dat",  # C III
     "mom97_ls#c3.dat": "adas][6/mom97_ls][c3.dat",  # C IV
