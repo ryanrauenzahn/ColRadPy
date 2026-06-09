@@ -43,7 +43,13 @@ Te = 60.0
 ne = 5e14
 
 # Retrieve saved files
+<<<<<<< HEAD
 base = Path("../atomic_data/")
+=======
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+base = PROJECT_ROOT / "atomic_data"
+>>>>>>> 3c282bad63dd88e7568e0a5377bee89e611106cc
 # CIII file
 c2_file = base / "mom97_ls#c2.dat"
 # CIV file
