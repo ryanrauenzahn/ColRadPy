@@ -1,8 +1,8 @@
-## Purpose:Loads atomic data for CIII and CIV, runs colradpy calculation for each species at the hard-coded electron temperature and density, it finds the spectral lines nearest to 97.7 and 155 nm, extracts their PECs, and calculates the ratio.
-## Author: Ryan Rauenzahn
-## Origin Date: 03/12/2026
-## Last Edit Date: 5/29/2026
-## Notes: I think the actual intensity is the PEC ratio multiplied with the number density ratio, so expand on this program. The inital run at 60eV gives 8.4x10-1 and the Chaplin paper shows about 10-3 for the density of 5x10+14. 
+# Purpose:Loads atomic data for CIII and CIV, runs colradpy calculation for each species at the hard-coded electron temperature and density, it finds the spectral lines nearest to 97.7 and 155 nm, extracts their PECs, and calculates the ratio.
+# Author: Ryan Rauenzahn
+# Origin Date: 03/12/2026
+# Last Edit Date: 5/29/2026
+# Notes: I think the actual intensity is the PEC ratio multiplied with the number density ratio, so expand on this program. The inital run at 60eV gives 8.4x10-1 and the Chaplin paper shows about 10-3 for the density of 5x10+14. 
 
 
 from pathlib import Path
@@ -39,11 +39,11 @@ def find_line(wave, pec, target, tol=1.0):
     return wave[best], pec[best]
 
 # Plasma parameters (the temperature needs to be done over a range next)
-Te = 15.0
+Te = 60.0
 ne = 5e14
 
 # Retrieve saved files
-base = Path("examples/input/test-downloads")
+base = Path("../atomic_data/")
 # CIII file
 c2_file = base / "mom97_ls#c2.dat"
 # CIV file
