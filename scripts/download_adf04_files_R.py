@@ -2,7 +2,7 @@
 # Author: Ryan Rauenzahn
 # Origin Date: 03/10/2026
 # Last Edit Date: 06/08/2026
-# Notes: Currently set to download carbon II, III, IV, V, and VI files.
+# Notes: Currently set to download carbon I, II, III, IV, V, and VI files.
 
 from urllib.request import urlretrieve
 from pathlib import Path

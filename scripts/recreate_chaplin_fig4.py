@@ -24,7 +24,8 @@ metas = [np.array([0]) for _ in files]
 Te = np.linspace(1.0, 100.0, 500)  # eV
 ne = np.array([5.0e14])            # cm^-3
 
-# stops the ionizing upward issue on C VI
+# stops the ionizing upward issue on C VI?
+# ***Not sure if this is correct
 use_ionization = [True, True, True, True, False]
 
 print("\n--- Building ColRadPy ionization balance object ---")
@@ -34,12 +35,12 @@ ib = ionization_balance(
     metas,
     Te,
     ne,
-    use_ionization=use_ionization,
-    use_recombination=True,
-    suppliment_with_ecip=True,
-    use_recombination_three_body=True,
-    use_cx=False,
-    keep_charge_state_data=False,
+    use_ionization = use_ionization,
+    use_recombination = True,
+    suppliment_with_ecip = True,
+    use_recombination_three_body = True,
+    use_cx = False,
+    keep_charge_state_data = False,
 )
 
 ib.populate_ion_matrix()
@@ -71,7 +72,7 @@ n0[0] = 1.0
 times = np.array([1e-3])
 
 print("\n--- Solving time-dependent ionization balance ---")
-ib.solve_no_source(n0=n0, td_t=times)
+ib.solve_no_source(n0 = n0, td_t = times)
 
 pops = ib.data["processed"]["pops_td"]
 state_pops = np.real(pops[:, -1, :, 0])
@@ -86,7 +87,7 @@ print("\n--- Raw state diagnostics ---")
 for i in range(n_states):
     max_val = np.max(state_pops[i, :])
     max_T = Te[np.argmax(state_pops[i, :])]
-    print(f"state {i}: max={max_val:.3e} at T={max_T:.1f} eV")
+    print(f"state {i}: max = {max_val:.3e} at T = {max_T:.1f} eV")
 
 # First-pass charge fractions
 charge_fractions = {
@@ -103,8 +104,8 @@ total_charge_fraction = np.zeros_like(Te)
 for label, arr in charge_fractions.items():
     total_charge_fraction += arr
     print(
-        f"{label:5s}: max={np.max(arr):.3e} "
-        f"at T={Te[np.argmax(arr)]:.1f} eV"
+        f"{label:5s}: max = {np.max(arr):.3e} "
+        f"at T = {Te[np.argmax(arr)]:.1f} eV"
     )
 
 print("charge fraction partial sum min:", np.min(total_charge_fraction))
@@ -112,7 +113,7 @@ print("charge fraction partial sum max:", np.max(total_charge_fraction))
 
 # Plot
 
-fig, ax = plt.subplots(figsize=(7, 5))
+fig, ax = plt.subplots(figsize = (7, 5))
 
 plot_config = [
     ("C III", "s"),
@@ -136,27 +137,27 @@ for label, marker in plot_config:
     ax.semilogy(
         Te[::stride],
         y[::stride],
-        marker=marker,
-        linestyle="None",
-        markersize=5,
+        marker = marker,
+        linestyle = "None",
+        markersize = 5,
     )
 
-ax.set_xlabel("T (eV)", fontsize=13)
+ax.set_xlabel("T (eV)", fontsize = 13)
 ax.set_ylabel("Ionization fraction", fontsize=13)
 ax.set_title(
     r"Carbon ionization balance from ColRadPy, $n_e = 5 \times 10^{14}$ cm$^{-3}$",
-    fontsize=11,
+    fontsize = 11,
 )
 
 ax.set_xlim(0, 100)
-ax.set_ylim(1e-5, 1.5)
-ax.legend(fontsize=10, loc="center right")
-ax.grid(True, which="both", linestyle="--", alpha=0.4)
+ax.set_ylim(1e-6, 1.5)
+ax.legend(fontsize = 10, loc = "center right")
+ax.grid(True, which = "both", linestyle = "--", alpha = 0.4)
 
 plt.tight_layout()
 
 out_file = PROJECT_ROOT / "fig4_ionization_balance_colradpy_class.png"
-plt.savefig(out_file, dpi=150)
+plt.savefig(out_file, dpi = 150)
 plt.show()
 
 print(f"\nFigure saved to {out_file}")
