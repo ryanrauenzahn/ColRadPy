@@ -15,17 +15,19 @@ files = [
     str(atomic_data_dir / "mom97_ls#c5.dat"),  # C VI
 ]
 
+# file check
 for f in files:
     if not Path(f).exists():
         raise FileNotFoundError(f"Missing file: {f}")
 
 metas = [np.array([0]) for _ in files]
 
+# set up temp array and density
 Te = np.linspace(1.0, 100.0, 500)  # eV
 ne = np.array([5.0e14])            # cm^-3
 
 # stops the ionizing upward issue on C VI?
-# ***Not sure if this is correct
+# Not sure if this is correct
 use_ionization = [True, True, True, True, False]
 
 print("\n--- Building ColRadPy ionization balance object ---")
@@ -43,6 +45,7 @@ ib = ionization_balance(
     keep_charge_state_data = False,
 )
 
+# from the ionization_balance class
 ib.populate_ion_matrix()
 
 ion_matrix = ib.data["ion_matrix"]
@@ -52,8 +55,7 @@ print("ion_matrix shape:", ion_matrix.shape)
 print("number of tracked states:", n_states)
 
 # show GCR shapes
-
-print("\n--- GCR shape diagnostics ---")
+print("\n--- GCR shape info ---")
 
 for i, file_path in enumerate(files):
     g = ib.data["cr_data"]["gcrs"][str(i)]
@@ -65,7 +67,6 @@ for i, file_path in enumerate(files):
     print("xcd shape:", g["xcd"].shape)
 
 # Solve ionization balance time-dependently
-
 n0 = np.zeros(n_states)
 n0[0] = 1.0
 
@@ -83,7 +84,7 @@ print("state population sum min:", np.min(np.sum(state_pops, axis=0)))
 print("state population sum max:", np.max(np.sum(state_pops, axis=0)))
 
 
-print("\n--- Raw state diagnostics ---")
+print("\n--- Raw state info ---")
 for i in range(n_states):
     max_val = np.max(state_pops[i, :])
     max_T = Te[np.argmax(state_pops[i, :])]
@@ -98,7 +99,7 @@ charge_fractions = {
     "C VI":  state_pops[4, :],
 }
 
-print("\n--- Charge-state diagnostics ---")
+print("\n--- Charge-state info ---")
 total_charge_fraction = np.zeros_like(Te)
 
 for label, arr in charge_fractions.items():
@@ -122,7 +123,7 @@ plot_config = [
     ("C VI", "v"),
 ]
 
-stride = max(1, len(Te) // 15)
+index = max(1, len(Te) // 15)
 
 for label, marker in plot_config:
     y = np.clip(charge_fractions[label], 1e-30, None)
@@ -131,12 +132,12 @@ for label, marker in plot_config:
         Te,
         y,
         linewidth=1.8,
-        label=label,
+        label = label,
     )
 
     ax.semilogy(
-        Te[::stride],
-        y[::stride],
+        Te[::index],
+        y[::index],
         marker = marker,
         linestyle = "None",
         markersize = 5,
