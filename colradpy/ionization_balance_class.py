@@ -337,7 +337,6 @@ class ionization_balance():
                                use_recombination = self.data['user']['use_recombination'][i],
                                use_cx = self.data['user']['use_cx'][i],
                                temp_dens_pair = self.data['user']['temp_dens_pair'])
-
                 tmp.solve_cr() #Solving the CR set of equations
                 #keep all the CR data if requested
                 if(keep_charge_state_data):
