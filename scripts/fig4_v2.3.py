@@ -5,9 +5,7 @@ import matplotlib.pyplot as plt
 # Use the newer ionization_balance_class version.
 from colradpy.ionization_balance_class import ionization_balance
 
-# ------------------------------------------------------------
 # Paths
-# ------------------------------------------------------------
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -26,8 +24,7 @@ for file in files:
     if not Path(file).exists():
         raise FileNotFoundError(f"Missing file: {file}")
 
-# Metastables from the ColRadPy ion_bal.py example.
-# This requires numpy 1.23.x behavior for ragged lists.
+# Metastables
 metas = [
     np.array([0]),      # C I
     np.array([0, 1]),   # C II
@@ -37,24 +34,13 @@ metas = [
     np.array([0]),      # C VI
 ]
 
-# ------------------------------------------------------------
 # Plasma grid
-# ------------------------------------------------------------
 
 Te = np.linspace(1.0, 100.0, 500)  # eV
 ne = np.array([5.0e14])            # cm^-3
 
-# ------------------------------------------------------------
-# Initial abundance
-# ------------------------------------------------------------
 
-# ionization_balance_class expects an initial abundance vector matching
-# the total number of tracked metastable states plus one terminal state
-# if no init_abund is supplied. For this c0-c5 setup, the ion_matrix tells
-# us the final number after construction, so we let the class create the
-# default init_abund internally and then use n_states after populate_ion_matrix.
-#
-# We will explicitly pass n0 after the matrix is created.
+# Initial abundance
 
 print("\n--- Building ionization_balance_class object ---")
 
@@ -71,9 +57,7 @@ ib = ionization_balance(
     keep_charge_state_data=False,
 )
 
-# ------------------------------------------------------------
 # Populate ionization matrix
-# ------------------------------------------------------------
 
 print("\n--- Populating ionization matrix ---")
 
@@ -85,9 +69,7 @@ n_states = ion_matrix.shape[0]
 print("ion_matrix shape:", ion_matrix.shape)
 print("number of tracked states:", n_states)
 
-# ------------------------------------------------------------
 # Solve time-dependent balance long enough to approximate steady state
-# ------------------------------------------------------------
 
 n0 = np.zeros(n_states)
 n0[0] = 1.0
@@ -111,9 +93,7 @@ print("state_pops shape:", state_pops.shape)
 print("state sum min:", np.min(np.sum(state_pops, axis=0)))
 print("state sum max:", np.max(np.sum(state_pops, axis=0)))
 
-# ------------------------------------------------------------
 # Collapse metastable-resolved states into charge states
-# ------------------------------------------------------------
 
 charge_labels = [
     "C I",
@@ -146,9 +126,7 @@ if offset < n_states:
         max_T = Te[np.argmax(state_pops[i, :])]
         print(f"extra state {i}: max={max_val:.3e} at T={max_T:.1f} eV")
 
-# ------------------------------------------------------------
 # Diagnostics
-# ------------------------------------------------------------
 
 print("\n--- Charge-state diagnostics ---")
 
@@ -163,9 +141,7 @@ for label in charge_labels:
 print("charge sum min:", np.min(total))
 print("charge sum max:", np.max(total))
 
-# ------------------------------------------------------------
-# Plot Figure 4-style ionization balance
-# ------------------------------------------------------------
+# Plot ionization balance
 
 fig, ax = plt.subplots(figsize=(7, 5))
 
