@@ -1,12 +1,10 @@
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
-
-# Use the newer ionization_balance_class version.
 from colradpy.ionization_balance_class import ionization_balance
 
 # Paths
-
+###############################
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 atomic_data_dir = PROJECT_ROOT / "atomic_data"
@@ -25,6 +23,7 @@ for file in files:
         raise FileNotFoundError(f"Missing file: {file}")
 
 # Metastables
+##############################
 metas = [
     np.array([0]),      # C I
     np.array([0, 1]),   # C II
@@ -35,13 +34,12 @@ metas = [
 ]
 
 # Plasma grid
-
+###############################
 Te = np.linspace(1.0, 100.0, 500)  # eV
 ne = np.array([5.0e14])            # cm^-3
 
-
 # Initial abundance
-
+###############################
 print("\n--- Building ionization_balance_class object ---")
 
 ib = ionization_balance(
@@ -58,7 +56,7 @@ ib = ionization_balance(
 )
 
 # Populate ionization matrix
-
+#################################
 print("\n--- Populating ionization matrix ---")
 
 ib.populate_ion_matrix()
@@ -70,23 +68,26 @@ print("ion_matrix shape:", ion_matrix.shape)
 print("number of tracked states:", n_states)
 
 # Solve time-dependent balance long enough to approximate steady state
-
+##################################
 n0 = np.zeros(n_states)
 n0[0] = 1.0
 
 # Similar spirit to official example: evolve far enough to settle.
+##################################
 times = np.geomspace(1e-8, 200.0, 300)
 
 print("\n--- Solving ionization balance ---")
 
 ib.solve_no_source(n0=n0, td_t=times)
 
-# For ionization_balance_class, output lives here:
+# For ionization_balance_class, output is here
+#################################
 pops = np.real(ib.data["processed"]["pops_td"])
 
 print("pops_td shape:", pops.shape)
 
 # Expected shape: [state, time, Te, ne]
+#################################
 state_pops = pops[:, -1, :, 0]
 
 print("state_pops shape:", state_pops.shape)
@@ -94,7 +95,7 @@ print("state sum min:", np.min(np.sum(state_pops, axis=0)))
 print("state sum max:", np.max(np.sum(state_pops, axis=0)))
 
 # Collapse metastable-resolved states into charge states
-
+##################################
 charge_labels = [
     "C I",
     "C II",
@@ -119,6 +120,7 @@ for label, meta in zip(charge_labels, metas):
     offset += n_meta
 
 # Safety check for extra terminal states.
+######################################
 if offset < n_states:
     print(f"\nWarning: {n_states - offset} extra tracked state(s) after C VI.")
     for i in range(offset, n_states):
@@ -127,7 +129,7 @@ if offset < n_states:
         print(f"extra state {i}: max={max_val:.3e} at T={max_T:.1f} eV")
 
 # Diagnostics
-
+######################################
 print("\n--- Charge-state diagnostics ---")
 
 total = np.zeros_like(Te)
@@ -141,8 +143,8 @@ for label in charge_labels:
 print("charge sum min:", np.min(total))
 print("charge sum max:", np.max(total))
 
-# Plot ionization balance
-
+# Plotting ionization balance
+#####################################
 fig, ax = plt.subplots(figsize=(7, 5))
 
 plot_config = [
