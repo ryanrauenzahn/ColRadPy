@@ -1,10 +1,29 @@
+"""
+Reproduces Figure 4 from Chaplin et al.
+
+This script computes the equilibrium carbon ionization balance using
+ColRadPy and ADAS ADF04 atomic data. The populations of the explicitly
+tracked metastable states are summed to obtain the total charge-state
+fractions, which are plotted as a function of electron temperature at
+
+    ne = 5 × 10^14 cm^-3.
+
+Atomic data:
+    mom97_ls#c0.dat  (C I)
+    ...
+    mom97_ls#c5.dat  (C VI)
+
+Author: Ryan Rauenzahn
+Date: June 17, 2026
+"""
+
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from colradpy.ionization_balance_class import ionization_balance
 
 # Paths
-###############################
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 atomic_data_dir = PROJECT_ROOT / "atomic_data"
@@ -22,8 +41,9 @@ for file in files:
     if not Path(file).exists():
         raise FileNotFoundError(f"Missing file: {file}")
 
-# Metastables
-##############################
+# Metastable levels to explicitly track for each ion
+# The indices correspond to level number in each ADF04 file
+
 metas = [
     np.array([0]),      # C I
     np.array([0, 1]),   # C II
@@ -33,14 +53,12 @@ metas = [
     np.array([0]),      # C VI
 ]
 
-# Plasma grid
-###############################
+# Electron temperature and density grid over which the ionization balance is calculated
+
 Te = np.linspace(1.0, 100.0, 500)  # eV
 ne = np.array([5.0e14])            # cm^-3
 
 # Initial abundance
-###############################
-print("\n--- Building ionization_balance_class object ---")
 
 ib = ionization_balance(
     files,
@@ -55,47 +73,33 @@ ib = ionization_balance(
     keep_charge_state_data=False,
 )
 
-# Populate ionization matrix
-#################################
-print("\n--- Populating ionization matrix ---")
+# Assemble the rate matrix containing ionization and recombination transitions between the tracked metastable states.
 
 ib.populate_ion_matrix()
 
-ion_matrix = ib.data["ion_matrix"]
-n_states = ion_matrix.shape[0]
+n_states = ib.data["ion_matrix"].shape[0]
 
-print("ion_matrix shape:", ion_matrix.shape)
-print("number of tracked states:", n_states)
+# Start with all carbon neutral and evolve the coupled rate equations until the populations reach steady state.
 
-# Solve time-dependent balance long enough to approximate steady state
-##################################
 n0 = np.zeros(n_states)
 n0[0] = 1.0
 
-# Similar spirit to official example: evolve far enough to settle.
-##################################
-times = np.geomspace(1e-8, 200.0, 300)
+# Time grid for the transient evolution.
 
-print("\n--- Solving ionization balance ---")
+times = np.geomspace(1e-8, 200.0, 300)
 
 ib.solve_no_source(n0=n0, td_t=times)
 
-# For ionization_balance_class, output is here
-#################################
+# Time-dependent metastable populations
+
 pops = np.real(ib.data["processed"]["pops_td"])
 
-print("pops_td shape:", pops.shape)
+# Take the final time step (where there is steady-state populations).
 
-# Expected shape: [state, time, Te, ne]
-#################################
 state_pops = pops[:, -1, :, 0]
 
-print("state_pops shape:", state_pops.shape)
-print("state sum min:", np.min(np.sum(state_pops, axis=0)))
-print("state sum max:", np.max(np.sum(state_pops, axis=0)))
+# Sum the metastable populations belonging to the same ionization stage to obtain the total charge-state fraction
 
-# Collapse metastable-resolved states into charge states
-##################################
 charge_labels = [
     "C I",
     "C II",
@@ -106,11 +110,10 @@ charge_labels = [
 ]
 
 charge_fractions = {}
-
 offset = 0
 
-for label, meta in zip(charge_labels, metas):
-    n_meta = len(meta)
+for label, metastables in zip(charge_labels, metas):
+    n_meta = len(metastables)
 
     charge_fractions[label] = np.sum(
         state_pops[offset:offset + n_meta, :],
@@ -119,17 +122,8 @@ for label, meta in zip(charge_labels, metas):
 
     offset += n_meta
 
-# Safety check for extra terminal states.
-######################################
-if offset < n_states:
-    print(f"\nWarning: {n_states - offset} extra tracked state(s) after C VI.")
-    for i in range(offset, n_states):
-        max_val = np.max(state_pops[i, :])
-        max_T = Te[np.argmax(state_pops[i, :])]
-        print(f"extra state {i}: max={max_val:.3e} at T={max_T:.1f} eV")
-
 # Diagnostics
-######################################
+
 print("\n--- Charge-state diagnostics ---")
 
 total = np.zeros_like(Te)
@@ -144,7 +138,7 @@ print("charge sum min:", np.min(total))
 print("charge sum max:", np.max(total))
 
 # Plotting ionization balance
-#####################################
+
 fig, ax = plt.subplots(figsize=(7, 5))
 
 plot_config = [
