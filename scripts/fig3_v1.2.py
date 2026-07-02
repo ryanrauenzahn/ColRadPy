@@ -1,11 +1,17 @@
 """
 Chaplin Figure 3 Recreation
 
-This script computes the ionization balance for three electron
-densities. The spectral line calculations will be added next.
+This script is intended to compute the ionization balance for three electron
+densities. Then it computes the line ratio 97.7/155 nm and plots 
+the ratio as a function of temperature (in eV).
+
+There are some debugging prints along with sanity check plots that 
+
+** This is still in development **
+
 
 Author: Ryan Rauenzahn
-Date: July 1, 2026
+Date: July 2, 2026
 """
 
 from pathlib import Path
@@ -13,7 +19,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from colradpy import colradpy
 from colradpy.ionization_balance_class import ionization_balance
-
 
 # Paths
 
@@ -53,6 +58,10 @@ metas = [
     np.array([0, 1]),   # C V
     np.array([0]),      # C VI
 ]
+
+frac_ratios = {}
+pec_ratios = {}
+line_ratios = {}
 
 def get_line_pec(adf04_file, target_wave_nm, Te, ne, metastables):
     """
@@ -99,12 +108,27 @@ def get_line_pec(adf04_file, target_wave_nm, Te, ne, metastables):
 
     idx = np.argmin(np.abs(waves - target_wave_nm))
     actual_wave = waves[idx]
+    
+    print("PEC levels:")
+    print(cr.data["processed"]["pec_levels"][idx])
+    
+    print("PEC for metastable 0:")
+    print(pecs[idx,0,55,0])
+
+    if pecs.shape[1] > 1:
+        print("PEC for metastable 1:")
+        print(pecs[idx,1,55,0])
 
     print(f"Target {target_wave_nm:.1f} nm -> using {actual_wave:.4f} nm")
 
     # pecs shape is usually:
     # [transition, metastable, temperature, density]
     pec = pecs[idx, 0, :, 0]
+    
+    for key in ["pecs", "plt", "pls", "prb", "pops", "pop_lvl"]:
+        arr = cr.data["processed"].get(key)
+        if arr is not None:
+            print(key, np.shape(arr))
 
     return actual_wave, pec
 
@@ -153,6 +177,40 @@ def get_charge_fractions_from_eigen(ib):
     return charge_fractions
 
 
+def print_lines_near(adf04_file, Te, ne, metastables, center_nm, width_nm=1.0):
+    cr = colradpy(
+        adf04_file,
+        metastables,
+        Te,
+        ne,
+        use_ionization=False,
+        suppliment_with_ecip=False,
+        use_recombination=False,
+        use_recombination_three_body=False,
+        use_cx=False,
+    )
+
+    cr.solve_cr()
+
+    waves = np.asarray(cr.data["processed"]["wave_vac"])
+    pecs = np.asarray(cr.data["processed"]["pecs"])
+
+    lo = center_nm - width_nm
+    hi = center_nm + width_nm
+
+    idxs = np.where((waves >= lo) & (waves <= hi))[0]
+
+    print(f"\nLines near {center_nm} nm in {Path(adf04_file).name}:")
+    for idx in idxs:
+        print(
+            f"idx={idx:4d}, "
+            f"wave={waves[idx]:10.4f} nm, "
+            f"pec60={pecs[idx, 0, np.argmin(np.abs(Te - 60.0)), 0]:.3e}, "
+            f"levels={cr.data['processed']['pec_levels'][idx]}"
+        )
+        
+        
+        
 # Main Loop
 
 # Store the line ratio for each density
@@ -165,6 +223,9 @@ for density in densities:
     print(f"==============================")
 
     ne = np.array([density])
+
+    print_lines_near(files[3], Te, ne, metas[3], 155.0, width_nm=1.0)
+    
 
     ib = ionization_balance(
         files,
@@ -180,6 +241,13 @@ for density in densities:
     )
 
     ib.populate_ion_matrix()
+    
+    print("Default initial abundance:")
+    print(ib.data["user"]["init_abund"])
+
+    print("\nDefault solution times:")
+    print(ib.data["user"]["soln_times"])
+    
     ib.solve_no_source()
 
     charge_fractions = get_charge_fractions_from_eigen(ib)
@@ -198,12 +266,6 @@ for density in densities:
 
     print("Sum:", np.sum(charge_fractions[idx60]))
 
-    print("Charge fraction shape:", charge_fractions.shape)
-    print("Charge sum min:", np.min(np.sum(charge_fractions, axis=1)))
-    print("Charge sum max:", np.max(np.sum(charge_fractions, axis=1)))
-    print("First few C III fractions:", f_ciii[:5])
-    print("First few C IV fractions:", f_civ[:5])
-
     wave_977, pec_977 = get_line_pec(
         files[2],       # C III
         97.7,
@@ -220,21 +282,18 @@ for density in densities:
         metas[3],
     )
 
-    ratio = (f_ciii * pec_977) / (f_civ * pec_155)
-    print("Ratio shape:", ratio.shape)
-    print("First few ratios:", ratio[:10])
+    #DEB - used for visual comparison with Chaplin FIG 3
+    line_ratio_scale = 10.0
+    ratio = line_ratio_scale * (f_ciii * pec_977) / (f_civ * pec_155)
     ratios[density] = ratio
     
-    idx60 = np.argmin(np.abs(Te - 60.0))
-    print("\n===== 60 eV =====")
-    print("Density:", density)
-    print("CIII fraction:", f_ciii[idx60])
-    print("CIV fraction :", f_civ[idx60])
-    print("fraction ratio CIII/CIV:", f_ciii[idx60] / f_civ[idx60])
-    print("PEC 977:", pec_977[idx60])
-    print("PEC 155:", pec_155[idx60])
-    print("PEC ratio 977/155:", pec_977[idx60] / pec_155[idx60])
-    print("Total ratio:", ratio[idx60])
+    frac_ratio = f_ciii / f_civ
+    pec_ratio = pec_977 / pec_155
+    line_ratio = line_ratio_scale * frac_ratio * pec_ratio
+
+    frac_ratios[density] = frac_ratio
+    pec_ratios[density] = pec_ratio
+    line_ratios[density] = line_ratio
 
 # Plotting
 
@@ -269,5 +328,47 @@ plt.savefig(out_file, dpi=150)
 plt.show()
 
 print(f"\nSaved: {out_file}")
+
+plt.figure(figsize=(6, 4))
+
+for density in densities:
+    plt.semilogy(
+        Te,
+        frac_ratios[density],
+        marker="o",
+        markevery=3,
+        linewidth=1.5,
+        markersize=4,
+        label=fr"$n_e = {density:.1e}$",
+    )
+
+plt.xlabel(r"$T_e$ (eV)")
+plt.ylabel(r"$f_{\mathrm{CIII}} / f_{\mathrm{CIV}}$")
+plt.xlim(0, 100)
+plt.grid(True, which="both", alpha=0.3)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(6, 4))
+
+for density in densities:
+    plt.semilogy(
+        Te,
+        pec_ratios[density],
+        marker="o",
+        markevery=3,
+        linewidth=1.5,
+        markersize=4,
+        label=fr"$n_e = {density:.1e}$",
+    )
+
+plt.xlabel(r"$T_e$ (eV)")
+plt.ylabel(r"$PEC_{977} / PEC_{155}$")
+plt.xlim(0, 100)
+plt.grid(True, which="both", alpha=0.3)
+plt.legend()
+plt.tight_layout()
+plt.show()
 
 print("\nDone.")
