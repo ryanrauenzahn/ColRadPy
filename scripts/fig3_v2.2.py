@@ -135,6 +135,40 @@ def get_line_pec(adf04_file, target_wave_nm, te, ne, metastables):
 
     idx = np.argmin(np.abs(waves - target_wave_nm))
     actual_wave = waves[idx]
+    
+    idx60 = np.argmin(np.abs(te - 60.0))
+
+    print("\n  PEC-related quantities at 60 eV:")
+
+    for key in ["pecs", "plt", "pls", "prb"]:
+        arr = cr.data["processed"].get(key)
+
+        if arr is None:
+            print(f"    {key}: not found")
+            continue
+
+        arr = np.asarray(arr)
+        print(f"    {key} shape: {arr.shape}")
+
+        try:
+            if arr.ndim == 4:
+                vals = arr[idx, :, idx60, 0]
+                print(f"    {key} by metastable: {vals}")
+                print(f"    {key} summed:        {np.sum(vals):.6e}")
+
+            elif arr.ndim == 3:
+                vals = arr[idx, :, idx60]
+                print(f"    {key} by metastable: {vals}")
+                print(f"    {key} summed:        {np.sum(vals):.6e}")
+
+            elif arr.ndim == 2:
+                print(f"    {key}: {arr[idx, idx60]:.6e}")
+
+            else:
+                print(f"    {key}: cannot parse ndim={arr.ndim}")
+
+        except Exception as err:
+            print(f"    {key}: could not index cleanly -> {err}")
 
     pec_by_meta = pecs[idx, :, :, 0]
     pec = np.sum(pec_by_meta, axis=0)
@@ -155,7 +189,7 @@ def get_line_pec(adf04_file, target_wave_nm, te, ne, metastables):
     return actual_wave, pec
 
 
-def print_lines_near(adf04_file, te, ne, metastables, center_nm, width_nm=1.0):
+def print_lines_near(adf04_file, te, ne, metastables, center_nm, width_nm=10.0):
     """
     Print candidate spectral lines near a target wavelength.
     """
@@ -298,8 +332,8 @@ def compute_result_for_density(density):
     ne = np.array([density])
 
     # Diagnostic line searches
-    print_lines_near(FILES[2], TE, ne, METAS[2], CIII_TARGET_NM, width_nm=1.0)
-    print_lines_near(FILES[3], TE, ne, METAS[3], CIV_TARGET_NM, width_nm=1.0)
+    print_lines_near(FILES[2], TE, ne, METAS[2], CIII_TARGET_NM, width_nm=10.0)
+    print_lines_near(FILES[3], TE, ne, METAS[3], CIV_TARGET_NM, width_nm=10.0)
 
     # Ionization balance
     ib = build_ionization_balance(TE, ne)
@@ -376,7 +410,7 @@ def plot_line_ratio(results):
     plt.title("Carbon Line Ratio")
 
     plt.xlim(0, 100)
-    plt.ylim(1e-4, 1e1)
+    plt.ylim(1e-6, 1e1)
 
     plt.grid(True, which="both", alpha=0.3)
     plt.legend()
