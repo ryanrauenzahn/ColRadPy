@@ -50,7 +50,7 @@ FILES = [
 # Plasma conditions
 # ============================================================
 
-TE = np.linspace(1.0, 200.0, 100)
+TE = np.linspace(1.0, 50, 50)
 
 DENSITIES = [
     8.0e14,
@@ -406,11 +406,11 @@ def plot_line_ratio(results):
         )
 
     plt.xlabel(r"$T_e$ (eV)")
-    plt.ylabel(r"Line Ratio ($I_97.7$/$I_155$)")
+    plt.ylabel(r"Line Ratio ($I_{97.7}$ / $I_{155}$)")
     plt.title("Carbon Line Ratio vs. Electron Temperature")
 
-    plt.xlim(0, 200)
-    plt.ylim(1e-5, 1e-2)
+    plt.xlim(0, 50)
+    plt.ylim(1e-5, 1e1)
 
     plt.grid(True, which="both", alpha=0.3)
     plt.legend()
