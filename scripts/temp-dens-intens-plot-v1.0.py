@@ -16,10 +16,11 @@ Outline:
     
     
 Sections:
-    1. Paths: defines the paths to the ADAS data files in this same root directory (located in the atomic_data folder). Files are in the ADF04 form and are named like "mom97_ls#c0.dat". 
-    2. Variables: 
+    1. Paths: defines the relative paths to the ADAS data files in this same root directory (located in the atomic_data folder). Files are in the ADF04 form and are named like "mom97_ls#c0.dat". 
+    2. Variables: define temp_grid to be from 0.1 eV to 15 eV and dens_grid to be 1e12 through 1e15, evenly spaced. So there will be (150)*(28)=4200 unique temperature-density combinations.
     3. File Check: small function that checks to see if every required ADF04 file exists.
-
+    4. Calculate ionization balance: ColRadPy constructs the ionization balance matrix by passing in all the variables supplied to it and then it solves the no source ionization balance problem. No source menas there's not a continuous injection of fresh carbon into the system. Stored in the ion_bal ojbect are the fractions (like f_CIII(T_e, n_e)).
+    
 Author: Ryan Rauenzahn
 Date: 07/14/2026
 
@@ -39,7 +40,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 ATOMIC_DATA_DIR = PROJECT_ROOT / "atomic_data"
 
-FILES = [
+files = [
     str(ATOMIC_DATA_DIR / "mom97_ls#c0.dat"), # C I
     str(ATOMIC_DATA_DIR / "mom97_ls#c1.dat"),
     str(ATOMIC_DATA_DIR / "mom97_ls#c2.dat"),
@@ -52,24 +53,29 @@ FILES = [
 # Variables
 # ============================================================
 
-# Plasma conditions
+# Plasma conditions / Temperature and density grids
 
-TE = np.linspace(1.0, 100, 15)
+temp_grid = np.linspace(0.1, 15.0, 150)
 
-METAS = [
+density_grid = np.concatenate([
+    np.arange(1, 10) * 1.0e12,
+    np.arange(1, 10) * 1.0e13,
+    np.arange(1, 10) * 1.0e14,
+    np.array([1e15])
+])
+
+metas = [
     np.array([0]),
     np.array([0, 1]),
     np.array([0, 1]),
     np.array([0]),
     np.array([0, 1]),
     np.array([0]),
-    
 ]
 
 # Physical Constants
 
 EV_TO_ERG = 1.60218e-12
-
 
 #============================================================
 # File Check
@@ -83,20 +89,47 @@ def check_input_files(files):
                 f"Missing ADF04 file: {file}"
             )
 
+#============================================================
+# Calculate ionization balance
+# ============================================================
 
+ion_bal = ionization_balance(
+    files,
+    metas,
+    temp_grid,
+    density_grid,
+    use_recombination=True,
+    use_recombination_three_body=True,
+    use_ionization=True,
+    suppliment_with_ecip=True,
+)
 
+ion_bal.populate_ion_matrix()
+ion_bal.solve_time_independent()
 
+#============================================================
+# Ionization-balance output inspection
+# ============================================================
 
+pops_ss = ion_bal.data["processed"]["pops_ss"]
 
+print("\n--- Ionization-balance output ---")
+print("Steady-state population shape:", pops_ss.shape)
+print("Number of temperatures:", len(temp_grid))
+print("Number of densities:", len(density_grid))
+
+population_sum = np.sum(pops_ss, axis=0)
+
+print("Population-sum shape:", population_sum.shape)
+print("Minimum population sum:", np.min(population_sum))
+print("Maximum population sum:", np.max(population_sum))
 
 # ============================================================
 # Main
 # ============================================================
 
 def main():
-    check_input_files(FILES)
-    
-    
+    check_input_files(files)
     
     print("\nDone")
     
