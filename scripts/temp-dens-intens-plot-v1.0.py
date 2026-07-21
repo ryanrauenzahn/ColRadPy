@@ -12,7 +12,9 @@ Outline:
     5. Calculate the selected spectral line intensity for every temperature-density combination.
     6. Store the calculated intensities in a two-dimensional array.
     7. Generate a three-dimensional surface plot of the results.
-    8. Formate and display the completed figure.
+    8. Generate a two-dimensional plot to view side profile of density variation.
+    9. Generate a zoomed-in "heat map" to show density variation (since it's small).
+    10. Generate an interactive HTML page of the three-dimensional plot. 
     
     
 Sections:
@@ -22,6 +24,25 @@ Sections:
     4. Retrive ionization balance-output: ColRadPy constructs the ionization balance matrix by passing in all the variables supplied to it and then it solves the no source ionization balance problem. No source means there's not a continuous injection of fresh carbon into the system. Stored in the ion_bal object are the fractions (like f_CIII(T_e, n_e)).
     5. Build the C III CR model: we need to know how bright the lines from one C III ion are. To get this information, we solve the CR model, which tells us how many ions are sitting in each excitied level under the specified plasma conditions. It's from this information that we can find the emitted light.
     6. Locate the C III 97.7 nm transition: Need to know which transition in the wave_air output from the CR model corresponds to the 97.7 nm transition.
+    7. Retrieve ionization balance output: Extracts the steady-state ion fractions from the solved ionization balance. These fractions represent the relative abundance of each metastable charge state and provide the population weights needed when calculating spectral emissivities
+    8. Build the C III CR model: Constructs and solves the collisional-radiative model for C III. This determines the photon emissivity coefficients (PECs) describing how efficiently a single C III ion emits each spectral line through electron-impact excitation and recombination.
+    9. Locate the C III 97.7 nm transition: Searches the list of wavelengths produced by the CR model and identifies the transition closest to 97.7 nm. The resulting transition index is used to extract the correct photon emissivity coefficients from the full PEC array.
+    10. Extract the C III 97.7 nm PECs: Extracts the photon emissivity coefficients associated with the selected transition. These coefficients contain separate contributions from excitation of each metastable state and from recombination into C III.
+    11. Extract populations that drive the C III line: Retrieves the ionization-balance populations corresponding to the metastable states that contribute to the selected C III transition. These populations provide the weighting factors applied to each PEC contribution.
+    12. Construct the C III emissivity coefficient: Multiplies each photon emissivity coefficient by the appropriate metastable population and sums the individual excitation and recombination contributions to obtain the total C III 97.7 nm emissivity coefficient.
+    13. Build the C IV CR model: Constructs and solves the collisional-radiative model for C IV. This determines the photon emissivity coefficients (PECs) describing how efficiently a single C IV ion emits each spectral line through electron-impact excitation and recombination.
+    14. Locate the C IV 155 nm transition: Searches the list of wavelengths produced by the CR model and identifies the transition closest to 155 nm. The resulting transition index is used to extract the correct photon emissivity coefficients from the full PEC array.
+    15. 
+    16. 
+    17. 
+    18. Compute the C III / C IV line ratio: Computes the C III/C IV intensity ratio at every temperature-density point while avoiding division by zero in regions where the C IV emissivity is negligible.
+    19. Create a ratio array for visualization: Removes physically meaningless ratios that arise when both spectral lines have extremely small emissivities. The masking is applied only for visualization and does not alter the underlying calculated line ratio.
+    20. Create mesh grids for 3D plotting: Converts the one-dimensional temperature and density arrays into two-dimensional coordinate grids required for surface plotting.
+    21. Logarithmic line ratio for visualization: Converts the line ratio to base-10 logarithmic scale to improve visualization over the wide dynamic range.
+    22. 3D surface plot: Generates a three-dimensional surface showing the dependence of the C III/C IV line ratio on electron temperature and density.
+    23. 
+    24.
+    25. Generate an interactive HTML page for the 3D plot using Plotly. 
     
     
 Author: Ryan Rauenzahn
@@ -32,6 +53,7 @@ Date: 07/14/2026
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from colradpy import colradpy
 from colradpy.ionization_balance_class import ionization_balance
 
@@ -76,10 +98,6 @@ metas = [
     np.array([0]),
 ]
 
-# Physical Constants
-
-EV_TO_ERG = 1.60218e-12
-
 #============================================================
 # File Check
 # ============================================================
@@ -116,8 +134,6 @@ ion_bal.solve_time_independent()
 
 pops_ss = ion_bal.data["processed"]["pops_ss"]
 
-population_sum = np.sum(pops_ss, axis=0)
-
 # ============================================================
 # Build the C III CR model
 # ============================================================
@@ -135,20 +151,6 @@ ciii = colradpy(
 
 ciii.solve_cr()
 
-
-# ============================================================
-# Inspect the C III collisional-radiative model
-# ============================================================
-
-ciii.data["processed"].keys()
-ciii.data["processed"]["pecs"].shape
-ciii.data["processed"]["wave_air"].shape
-print("\n--- C III object ---")
-print(ciii.data.keys())
-
-print("\n--- C III processed quantities ---")
-print(ciii.data["processed"].keys())
-
 # ============================================================
 # Locate the C III 97.7 nm transition
 # ============================================================
@@ -165,25 +167,9 @@ print("Closest wavelength:", wave_air[ciii_line_index], "nm")
 print("Transition index:", ciii_line_index)
 
 # ============================================================
-# Inspect the PEC array
+# Extract the C III 97.7 nm PECs
 # ============================================================
-
 pecs = ciii.data["processed"]["pecs"]
-
-print("\n--- PEC array ---")
-print("Shape:", pecs.shape)
-print("Dimensions:", pecs.ndim)
-print("\nDriving populations:")
-print(ciii.data["processed"]["driving_populations_norm"])
-print("\nPEC levels shape:")
-print(ciii.data["processed"]["pec_levels"].shape)
-
-print("\nFirst five PEC level entries:")
-print(ciii.data["processed"]["pec_levels"][:5])
-
-# ============================================================
-# Inspect the C III 97.7 nm PEC contributions
-# ============================================================
 
 ciii_line_pecs = pecs[ciii_line_index, :, :, :]
 
@@ -235,7 +221,7 @@ civ = colradpy(
 civ.solve_cr()
 
 # ============================================================
-# Locate the C IV line near 155 nm
+# Locate the C IV 155 nm transition
 # ============================================================
 
 target_wave_civ = 155.0
@@ -296,90 +282,6 @@ line_ratio = np.divide(
 )
 
 # ============================================================
-# Inspect the extreme line-ratio values
-# ============================================================
-
-max_ratio_flat_index = np.nanargmax(line_ratio)
-max_ratio_index = np.unravel_index(
-    max_ratio_flat_index,
-    line_ratio.shape,
-)
-
-max_temp_index, max_density_index = max_ratio_index
-
-# ============================================================
-# Count grid points above trial emissivity thresholds
-# ============================================================
-
-thresholds = [
-    1e-30,
-    1e-25,
-    1e-20,
-    1e-15,
-    1e-12,
-]
-
-for threshold in thresholds:
-    ciii_count = np.sum(
-        ciii_97_emissivity_coeff > threshold
-    )
-
-    civ_count = np.sum(
-        civ_155_emissivity_coeff > threshold
-    )
-
-    both_count = np.sum(
-        (ciii_97_emissivity_coeff > threshold)
-        & (civ_155_emissivity_coeff > threshold)
-    )
-
-
-# ============================================================
-# Test relative emissivity cutoffs
-# ============================================================
-
-relative_cutoffs = [
-    1e-8,
-    1e-6,
-    1e-4,
-    1e-3,
-]
-
-print("\n--- Relative emissivity cutoff tests ---")
-
-for cutoff in relative_cutoffs:
-
-    ciii_threshold = (
-        cutoff * np.nanmax(ciii_97_emissivity_coeff)
-    )
-
-    civ_threshold = (
-        cutoff * np.nanmax(civ_155_emissivity_coeff)
-    )
-
-    valid_mask = (
-        (ciii_97_emissivity_coeff > ciii_threshold)
-        & (civ_155_emissivity_coeff > civ_threshold)
-    )
-
-    masked_ratio = np.where(
-        valid_mask,
-        line_ratio,
-        np.nan,
-    )
-
-    print(f"\nRelative cutoff: {cutoff:.0e}")
-    print("Valid points:", np.sum(valid_mask))
-    print(
-        "Minimum ratio:",
-        f"{np.nanmin(masked_ratio):.3e}",
-    )
-    print(
-        "Maximum ratio:",
-        f"{np.nanmax(masked_ratio):.3e}",
-    )
-
-# ============================================================
 # Create a ratio array for visualization
 # ============================================================
 
@@ -404,47 +306,6 @@ line_ratio_plot = np.where(
     np.nan,
 )
 
-print("\n--- Plotting mask ---")
-print("Relative cutoff:", relative_cutoff)
-print("C III threshold:", f"{ciii_plot_threshold:.3e}")
-print("C IV threshold:", f"{civ_plot_threshold:.3e}")
-print("Valid points:", np.sum(plot_mask))
-print("Masked points:", np.size(plot_mask) - np.sum(plot_mask))
-print(
-    "Displayed ratio range:",
-    f"{np.nanmin(line_ratio_plot):.3e}",
-    "to",
-    f"{np.nanmax(line_ratio_plot):.3e}",
-)
-
-# ============================================================
-# Visualize plotting mask
-# ============================================================
-""" 
-plt.figure(figsize=(7, 5))
-
-plt.imshow(
-    plot_mask,
-    origin="lower",
-    aspect="auto",
-    extent=[
-        density_grid[0],
-        density_grid[-1],
-        temp_grid[0],
-        temp_grid[-1],
-    ],
-)
-
-plt.xscale("log")
-
-plt.xlabel("Electron density (cm$^{-3}$)")
-plt.ylabel("Electron temperature (eV)")
-plt.title("Points included in ratio plot")
-
-plt.colorbar(label="Included (1) / Masked (0)")
-
-plt.show()
- """
 # ============================================================
 # Create mesh grids for 3D plotting
 # ============================================================
@@ -454,38 +315,18 @@ density_mesh, temp_mesh = np.meshgrid(
     temp_grid,
 )
 
-print("\n--- Mesh grid shapes ---")
-print("Temperature mesh:", temp_mesh.shape)
-print("Density mesh:", density_mesh.shape)
-print("Ratio array:", line_ratio_plot.shape)
-
 # ============================================================
 # Logarithmic line ratio for visualization
 # ============================================================
 
 log_line_ratio = np.log10(line_ratio_plot)
 
-print("\n--- Log ratio range ---")
-print("Minimum:", np.nanmin(log_line_ratio))
-print("Maximum:", np.nanmax(log_line_ratio))
-
 # ============================================================
-# First 3D surface plot
+# 3D surface plot
 # ============================================================
-
-from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
-
-surface = ax.plot_surface(
-    temp_mesh,
-    np.log10(density_mesh),
-    log_line_ratio,
-    cmap="viridis",
-    linewidth=0,
-    antialiased=True,
-)
 
 surface = ax.plot_surface(
     temp_mesh,
@@ -569,7 +410,6 @@ for target_density in selected_densities:
 plt.xlabel("Electron temperature (eV)")
 plt.ylabel(r"$I_{97.7}/I_{155}$")
 plt.title("C III 97.7 nm / C IV 155 nm Line Ratio")
-
 plt.grid(True, which="both", alpha=0.3)
 plt.legend()
 
@@ -589,7 +429,7 @@ contour = plt.contourf(
     temp_grid[temp_mask],
     density_grid,
     log_line_ratio[temp_mask, :].T,
-    levels=30,
+    levels=40,
     cmap="plasma",
 )
 
@@ -614,6 +454,55 @@ plt.savefig(
 )
 
 plt.show()
+
+# ============================================================
+# Interactive Plotly 3D surface
+# ============================================================
+
+fig = go.Figure(
+    data=[
+        go.Surface(
+            x=temp_mesh,
+            y=np.log10(density_mesh),
+            z=log_line_ratio,
+            colorscale="Plasma",
+            colorbar=dict(
+                title="log₁₀(Line Ratio)"
+            ),
+        )
+    ]
+)
+
+fig.update_layout(
+
+    title="C III 97.7 nm / C IV 155 nm Line Ratio",
+
+    scene=dict(
+
+        xaxis_title="Electron Temperature (eV)",
+
+        yaxis_title="log₁₀(Electron Density [cm⁻³])",
+
+        zaxis_title="log₁₀(I97.7/I155)",
+
+        camera=dict(
+            eye=dict(
+                x=1.6,
+                y=-1.8,
+                z=1.1,
+            )
+        ),
+    ),
+
+    width=1000,
+    height=700,
+)
+
+fig.write_html(
+    "CIII_CIV_LineRatio_Interactive.html"
+)
+
+fig.show()
 
 # ============================================================
 # Main
