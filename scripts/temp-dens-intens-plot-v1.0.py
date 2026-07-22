@@ -285,7 +285,7 @@ line_ratio = np.divide(
 # Create a ratio array for visualization
 # ============================================================
 
-relative_cutoff = 1e-4
+relative_cutoff = 1e-8
 
 ciii_plot_threshold = (
     relative_cutoff * np.nanmax(ciii_97_emissivity_coeff)
@@ -332,7 +332,7 @@ surface = ax.plot_surface(
     temp_mesh,
     np.log10(density_mesh),
     log_line_ratio,
-    cmap="plasma",
+    cmap="viridis",
     edgecolor="white",
     linewidth=0.15,
     antialiased=True,
@@ -422,7 +422,7 @@ plt.show()
 plt.figure(figsize=(7, 5))
 
 # Temperature range to zoom in on
-temp_mask = (temp_grid >= 10.0) & (temp_grid <= 15.0)
+temp_mask = (temp_grid >= 1.0) & (temp_grid <= 15.0)
 
 # Filled contour plot
 contour = plt.contourf(
@@ -430,7 +430,7 @@ contour = plt.contourf(
     density_grid,
     log_line_ratio[temp_mask, :].T,
     levels=40,
-    cmap="plasma",
+    cmap="viridis",
 )
 
 # Density axis should be logarithmic
