@@ -410,7 +410,7 @@ def plot_line_ratio(results):
     plt.title("Carbon Line Ratio vs. Electron Temperature")
 
     plt.xlim(0, 50)
-    plt.ylim(1e-5, 1e1)
+    plt.ylim(1e-5, 1e2)
 
     plt.grid(True, which="both", alpha=0.3)
     plt.legend()

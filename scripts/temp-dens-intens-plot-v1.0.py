@@ -285,7 +285,7 @@ line_ratio = np.divide(
 # Create a ratio array for visualization
 # ============================================================
 
-relative_cutoff = 1e-8
+relative_cutoff = 1e-60
 
 ciii_plot_threshold = (
     relative_cutoff * np.nanmax(ciii_97_emissivity_coeff)
@@ -422,14 +422,14 @@ plt.show()
 plt.figure(figsize=(7, 5))
 
 # Temperature range to zoom in on
-temp_mask = (temp_grid >= 1.0) & (temp_grid <= 15.0)
+temp_mask = (temp_grid >= 1.0) & (temp_grid <= 8.0)
 
 # Filled contour plot
 contour = plt.contourf(
     temp_grid[temp_mask],
     density_grid,
     log_line_ratio[temp_mask, :].T,
-    levels=40,
+    levels=60,
     cmap="viridis",
 )
 
